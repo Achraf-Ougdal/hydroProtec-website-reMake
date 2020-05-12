@@ -1,0 +1,26 @@
+.contain{
+	display: flex;
+	justify-content: space-around;
+	font-family: 'Roboto', sans-serif;
+	font-size: 18px;
+    font-weight: 80;
+    color: #1f1f1f;
+    line-height: 1.75em;
+    margin-top: 60px;
+}
+
+.note{
+	padding-left: 15px;
+	border-left: 3px solid #0098c3;
+}
+
+@media (max-width: 940px) {
+	.contain{
+    display: flex;
+    flex-direction: column;
+    margin-left: 60px;
+    }
+    .note{
+    	margin-bottom: 15px;
+    }
+}

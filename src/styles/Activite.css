@@ -1,0 +1,115 @@
+
+.big-title {
+    margin-top: 50px;
+    text-align: center;
+    display: flex;
+    font-family: 'Roboto', sans-serif;
+    flex-direction: column;
+    justify-content: space-around;
+    height: 180px;
+    color: #333;
+    background-color: white;
+    font-size: 26px;
+    font-weight: 700;
+    animation-duration: .8s;
+    animation-name: fadeAndScale;
+}
+  
+@media all and (max-width: 780px) {
+    .big-title{
+        margin-top: 40px;
+        padding-top: 40px;
+    }
+
+}
+
+
+@keyframes fadeAndScale {
+    0% {
+        opacity: 0;
+        transform: translate3d(0, 15px, 0);
+    }
+    75% {
+        opacity: 0;
+        transform: translate3d(0, 15px, 0);
+    }
+    100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+.card-container{
+    display: flex;
+    margin-top: 60px;
+    margin-bottom: 40px;
+}
+
+.text{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-basis: 50%;
+    vertical-align: middle;
+    font-size: 22px;
+    font-family: 'Roboto', sans-serif;
+    color: #333;
+    width: 100%;
+}
+
+.normal-img{
+    display: flex;
+    justify-content: center;
+    flex-basis: 50%;
+    height: 650px;
+}
+
+.depollution-img{
+    display: flex;
+    justify-content: center;
+    flex-basis: 50%;
+    height: 400px;
+}
+
+.own-img{
+    display: flex;
+    justify-content: center;
+    flex-basis: 50%;
+}
+
+
+@media (max-width: 940px) {
+.card-container{
+    display: flex;
+    flex-direction: column;
+    }
+    .text{
+        margin-top: 20px;
+    }
+
+}
+
+.sub-text{
+    font-family: 'Roboto', sans-serif;
+    font-size: 22px;
+    font-weight: 80;
+    color: #1f1f1f;
+    line-height: 1.75em;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.special{
+    display: flex;
+    justify-content: center;
+    flex-basis: 50%;
+    height: 400px;
+}
+
+.territory-img{
+    display: flex;
+    justify-content: center;
+    flex-basis: 50%;
+    height: 400px;
+}
+

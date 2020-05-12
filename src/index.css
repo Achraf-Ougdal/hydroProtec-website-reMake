@@ -1,0 +1,18 @@
+html{
+        scroll-behavior: smooth;
+}
+
+@media all and (max-width: 780px) {
+	 html{
+	 		margin: 0px;
+	   		height: 100%;
+	  		width: 180%;
+	  		scroll-behavior: smooth;
+	}
+
+	body {
+	   margin: 0px;
+	   min-height: 100%;
+	   width: 100%;
+	}
+}
