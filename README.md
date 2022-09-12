@@ -85,3 +85,28 @@ BEGIN
     END IF;
     
 END omnicdc_enable_db;
+
+--
+CREATE OR REPLACE PROCEDURE lmvcdc_disable_db IS
+    v_table_name VARCHAR(4000);
+    v_trigger_name user_triggers.trigger_name%TYPE;
+    CURSOR c_tablesDrop IS SELECT table_name FROM user_tables WHERE table_name LIKE 'LMVCDC%';
+    CURSOR c_triggersDrop IS SELECT trigger_name FROM user_triggers WHERE trigger_name LIKE 'LMVCDC%';
+BEGIN
+ 
+    OPEN c_tablesDrop;
+    OPEN c_triggersDrop;
+            LOOP
+                FETCH c_tablesDrop INTO v_table_name;
+                EXIT WHEN c_tablesDrop%NOTFOUND;
+                EXECUTE IMMEDIATE 'DROP TABLE ' || v_table_name;
+            END LOOP;
+            LOOP
+                FETCH c_triggersDrop INTO v_trigger_name;
+                EXIT WHEN c_triggersDrop%NOTFOUND;
+                EXECUTE IMMEDIATE 'DROP TRIGGER ' || v_trigger_name;
+            END LOOP;
+    CLOSE c_tablesDrop;
+    CLOSE c_triggersDrop;
+    dbms_output.put_line('LMVCDC WAS DISABLED SUCCESSFULLY IN THIS DATABASE');    
+END lmvcdc_disable_db;
