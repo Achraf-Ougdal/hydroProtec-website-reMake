@@ -66,3 +66,22 @@ This section has moved here: https://facebook.github.io/create-react-app/docs/de
 ### `npm run build` fails to minify
 
 This section has moved here: https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify
+
+
+----------------------------------------------------------------------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE omnicdc_enable_db IS
+    v_already_enabled NUMBER;
+BEGIN
+
+    SELECT COUNT(*) INTO v_already_enabled FROM user_tables WHERE table_name='OMNICDC_CHANGE_TABLES';
+    IF (v_already_enabled=0) THEN
+        EXECUTE IMMEDIATE 'CREATE TABLE OMNICDC_CHANGE_TABLES(
+                                TableName VARCHAR(50),
+                                CreateDate VARCHAR(50)
+                            )';
+        dbms_output.put_line('OMNICDC WAS ENABLED SUCCESSFULLY IN THIS DATABASE');
+    ELSE
+        dbms_output.put_line('OMNICDC IS ALREADY ENABLED IN THIS DATABASE');
+    END IF;
+    
+END omnicdc_enable_db;
