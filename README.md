@@ -67,8 +67,10 @@ This section has moved here: https://facebook.github.io/create-react-app/docs/de
 
 This section has moved here: https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify
 
-
 ----------------------------------------------------------------------------------------------------------------------------------------
+
+set serveroutput on size 30000;
+
 CREATE OR REPLACE PROCEDURE omnicdc_enable_db IS
     v_already_enabled NUMBER;
 BEGIN
@@ -85,13 +87,12 @@ BEGIN
     END IF;
     
 END omnicdc_enable_db;
-
---
-CREATE OR REPLACE PROCEDURE lmvcdc_disable_db IS
+/
+CREATE OR REPLACE PROCEDURE omnicdc_disable_db IS
     v_table_name VARCHAR(4000);
     v_trigger_name user_triggers.trigger_name%TYPE;
-    CURSOR c_tablesDrop IS SELECT table_name FROM user_tables WHERE table_name LIKE 'LMVCDC%';
-    CURSOR c_triggersDrop IS SELECT trigger_name FROM user_triggers WHERE trigger_name LIKE 'LMVCDC%';
+    CURSOR c_tablesDrop IS SELECT table_name FROM user_tables WHERE table_name LIKE 'OMNICDC%';
+    CURSOR c_triggersDrop IS SELECT trigger_name FROM user_triggers WHERE trigger_name LIKE 'OMNICDC%';
 BEGIN
  
     OPEN c_tablesDrop;
@@ -108,5 +109,109 @@ BEGIN
             END LOOP;
     CLOSE c_tablesDrop;
     CLOSE c_triggersDrop;
-    dbms_output.put_line('LMVCDC WAS DISABLED SUCCESSFULLY IN THIS DATABASE');    
-END lmvcdc_disable_db;
+    dbms_output.put_line('OMNICDC WAS DISABLED SUCCESSFULLY IN THIS DATABASE');    
+END omnicdc_disable_db;
+/
+CREATE OR REPLACE PROCEDURE omnicdc_trigger_table(p_table_name IN VARCHAR) IS
+    v_trigger_query VARCHAR(4000) :='CREATE OR REPLACE TRIGGER ';
+    v_ct_table_name VARCHAR(4000) := 'OMNICDC_' || p_table_name || '_CT';
+    CURSOR c_cols_cursor IS SELECT COLUMN_NAME FROM user_tab_columns WHERE table_name=''||p_table_name;
+    v_colname VARCHAR(100);
+BEGIN
+        dbms_output.put_line('Trigger procedure');
+        v_trigger_query := v_trigger_query || 'OMNICDC_TRIGGER_' || p_table_name ||' AFTER INSERT OR UPDATE OR DELETE ON ' || p_table_name||' FOR EACH ROW
+                                                    DECLARE
+                                                        v_seq NUMBER;
+                                                    BEGIN
+                                                        SELECT COUNT(*) INTO v_seq FROM '|| v_ct_table_name ||';
+                                                        v_seq:=v_seq+1;
+                                                        IF INSERTING THEN
+                                                            INSERT INTO ' || v_ct_table_name || ' VALUES(';
+                                                                OPEN c_cols_cursor;
+                                                                LOOP
+                                                                    FETCH c_cols_cursor INTO v_colname;
+                                                                    EXIT WHEN c_cols_cursor%NOTFOUND;
+                                                                    v_trigger_query := v_trigger_query || ':NEW.' || v_colname || ',';
+                                                                END LOOP;
+                                                                CLOSE c_cols_cursor;
+                                                                v_trigger_query := v_trigger_query || 'v_seq, 2);
+                                                        ELSIF UPDATING THEN
+                                                                INSERT INTO ' || v_ct_table_name || ' VALUES(';
+                                                                    OPEN c_cols_cursor;
+                                                                    LOOP
+                                                                        FETCH c_cols_cursor INTO v_colname;
+                                                                        EXIT WHEN c_cols_cursor%NOTFOUND;
+                                                                        v_trigger_query := v_trigger_query || ':OLD.' || v_colname || ',';
+                                                                    END LOOP;
+                                                                    CLOSE c_cols_cursor;
+                                                                v_trigger_query := v_trigger_query || 'v_seq, 3);
+                                                                INSERT INTO ' || v_ct_table_name || ' VALUES(';
+                                                                    OPEN c_cols_cursor;
+                                                                    LOOP
+                                                                        FETCH c_cols_cursor INTO v_colname;
+                                                                        EXIT WHEN c_cols_cursor%NOTFOUND;
+                                                                        v_trigger_query := v_trigger_query || ':NEW.' || v_colname || ',';
+                                                                    END LOOP;
+                                                                    CLOSE c_cols_cursor;
+                                                                v_trigger_query := v_trigger_query || 'v_seq, 4);
+                                                        ELSIF DELETING THEN
+                                                            INSERT INTO ' || v_ct_table_name || ' VALUES(';
+                                                                    OPEN c_cols_cursor;
+                                                                    LOOP
+                                                                        FETCH c_cols_cursor INTO v_colname;
+                                                                        EXIT WHEN c_cols_cursor%NOTFOUND;
+                                                                        v_trigger_query := v_trigger_query || ':OLD.' || v_colname || ',';
+                                                                    END LOOP;
+                                                                    CLOSE c_cols_cursor;
+                                                                v_trigger_query := v_trigger_query || 'v_seq, 1);
+                                                        END IF;
+                                                        END;
+                                                    ';   
+                                                    EXECUTE IMMEDIATE v_trigger_query;
+END omnicdc_trigger_table;
+/
+CREATE OR REPLACE PROCEDURE omnicdc_enable_table(p_table_name IN VARCHAR) IS
+    v_omnicdc_enabled NUMBER;
+    v_omnicdc_table_enabled NUMBER;
+    v_seq INTEGER;
+    v_ct_table_name VARCHAR(4000);
+BEGIN
+    SELECT COUNT(*) INTO v_omnicdc_enabled FROM user_tables WHERE table_name='OMNICDC_CHANGE_TABLES';
+    SELECT COUNT(*) INTO v_omnicdc_table_enabled FROM user_tables WHERE table_name='OMNICDC_'||p_table_name||'_CT';
+    IF (v_omnicdc_enabled=0) THEN
+        dbms_output.put_line('OMNICDC IS NOT ENABLED IN THIS DATABASE. RUN OMNICDC_ENABLE_DB to ENABLE CDC IN THIS DATABASE');
+    ELSIF (v_omnicdc_table_enabled>0) THEN
+        dbms_output.put_line('OMNICDC IS ALREADY ENABLED FOR THIS TABLE');
+    ELSE
+        v_ct_table_name := 'OMNICDC_' || p_table_name || '_CT';
+        EXECUTE IMMEDIATE 'CREATE TABLE '||v_ct_table_name|| ' AS SELECT * FROM ' || p_table_name || ' WHERE ROWNUM <= 0 ';
+        EXECUTE IMMEDIATE 'ALTER TABLE ' || v_ct_table_name || ' ADD (ID_CT INTEGER)';
+        EXECUTE IMMEDIATE 'ALTER TABLE ' || v_ct_table_name || ' ADD (OPERATION_TYPE INTEGER)';
+        EXECUTE IMMEDIATE 'INSERT INTO OMNICDC_CHANGE_TABLES VALUES (' || chr(39) || v_ct_table_name || chr(39) || ', ' || chr(39) || SYSDATE || chr(39) || ')';
+        omnicdc_trigger_table(p_table_name);
+		dbms_output.put_line('OMNICDC WAS ENABLED SUCCESSFULLY IN THIS TABLE');
+    END IF; 
+END omnicdc_enable_table;
+/
+CREATE OR REPLACE PROCEDURE omnicdc_disable_table(p_table_name IN VARCHAR) IS
+    v_omnicdc_enabled NUMBER;
+    v_omnicdc_table_enabled NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO v_omnicdc_enabled FROM user_tables WHERE table_name='OMNICDC_CHANGE_TABLES';
+    SELECT COUNT(*) INTO v_omnicdc_table_enabled FROM user_tables WHERE table_name='OMNICDC_'||p_table_name||'_CT';
+    IF (v_omnicdc_enabled=0) THEN
+        dbms_output.put_line('OMNICDC IS NOT ENABLED IN THIS DATABASE. RUN OMNICDC_ENABLE_DB to ENABLE CDC IN THIS DATABASE');
+    ELSIF (v_omnicdc_table_enabled=0) THEN
+        dbms_output.put_line('OMNICDC IS NOT ENABLED FOR THIS TABLE');
+    ELSE
+        EXECUTE IMMEDIATE 'DROP TABLE OMNICDC_' || p_table_name || '_CT';
+        EXECUTE IMMEDIATE 'DROP TRIGGER OMNICDC_TRIGGER_' || p_table_name;
+        EXECUTE IMMEDIATE 'DELETE FROM OMNICDC_CHANGE_TABLES WHERE TABLENAME=''OMNICDC_'||p_table_name||'_CT''';
+        dbms_output.put_line('OMNICDC WAS DISABLED SUCCESSFULLY FOR THIS TABLE');   
+    END IF; 
+END omnicdc_disable_table;
+/
+EXECUTE omnicdc_enable_db();
+EXECUTE omnicdc_disable_db();
+EXECUTE omnicdc_enable_table('CLIENTS');
+EXECUTE omnicdc_disable_table('CLIENTS');
